@@ -4,6 +4,8 @@ A Windows desktop tool that plays walkthrough transcripts into interactive
 fiction interpreter windows (or any application), sending commands line by
 line with configurable timing.
 
+https://github.com/user-attachments/assets/c61243db-b08b-4f67-a84c-e81234af3b02
+
 ## Features
 
 - Select up to **3 target windows** to receive commands simultaneously
