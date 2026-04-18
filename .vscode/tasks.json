@@ -1,0 +1,46 @@
+
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Debug",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-Command",
+                "$project = Join-Path $env:WORKSPACE_FOLDER 'PunyPlayer\\PunyPlayer.csproj'; $outputDir = Join-Path $env:WORKSPACE_FOLDER 'PunyPlayer\\bin\\Debug\\net8.0-windows'; dotnet build $project; Copy-Item -Force (Join-Path $env:WORKSPACE_FOLDER 'Release\\example.txt') (Join-Path $outputDir 'example.txt'); Start-Process -FilePath (Join-Path $outputDir 'PunyPlayer.exe')"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "WORKSPACE_FOLDER": "${workspaceFolder}"
+                }
+            },
+            "group": "build",
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "Release",
+            "type": "shell",
+            "command": "dotnet",
+            "args": [
+                "publish",
+                "PunyPlayer\\PunyPlayer.csproj",
+                "-c", "Release",
+                "-r", "win-x64",
+                "--no-self-contained",
+                "-p:PublishSingleFile=true",
+                "-o", "${workspaceFolder}\\Release"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
+            "problemMatcher": "$msCompile"
+        }
+    ]
+}
+

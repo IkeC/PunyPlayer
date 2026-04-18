@@ -1,0 +1,540 @@
+# This is a walkthrough for the PunyInform game "Dust".
+# https://ikeserver.de/Dust/
+#
+# PunyPlayer will ignore blank lines and lines starting with #.
+#
+# Special commands:
+# ! E or ! Enter -> Press Enter
+# ! S or ! Space -> Press Space
+# ! Delay 2000 -> wait 2000 miliseconds
+# ! WIN="Agon": exec playgame.txt -> If window title contains "Agon", send the line "exec playgame.txt"
+# ! EXEC="C:\Emu\dfrotz.exe" -> Start dfrotz.exe
+
+! WIN="Fab Agon Emulator": cd games/Agon
+! WIN="Fab Agon Emulator": exec playgame.txt
+
+restart
+yes
+! Delay 2000
+info
+! S
+
+# Room
+look
+smell
+examine door
+examine wall
+examine floor
+examine bed
+examine mattress
+examine window
+examine windpump
+examine nightstand
+take bag
+examine bag
+open bag
+examine draft notice
+examine drawing
+examine revolver
+examine money
+smell me
+down
+
+# Saloon
+smell
+examine woman
+examine tables
+examine chairs
+examine stage
+examine stairs
+examine counter
+examine beams
+examine nail
+
+talk to woman
+# How are you doing?
+1
+# Looks wild in here.
+1
+# A coffee please.
+1
+# There was a fight?
+1
+# Mifflin? Doesn't ring a bell.
+1
+# End
+0
+examine counter
+drink coffee
+drink coffee
+out
+
+# Main Street
+smell
+examine tumbleweed
+examine sun
+take sun
+examine buildings
+examine office
+examine cat
+examine store
+examine barber
+examine pole
+w
+
+# Ranch
+talk to woman
+# May I help you Ma'am?
+1
+# Who is Michael?
+1
+# Do you have any idea what might have happened?
+2
+
+# Flashback 1 / Sheriff
+! S
+! S
+take bag
+examine Sheriff
+examine star
+talk to Sheriff
+# What happened? How did I get here?
+1
+# What about Lucy?
+1
+# Why is this my problem now?
+1
+# Can you tell me something about Lucy?
+1
+# May I leave now?
+1
+# End
+0
+take bag
+smell
+examine plank beds
+examine passageway
+examine house
+
+out
+open bag
+w
+
+# Ranch
+smell
+examine house
+enter house
+examine paddock
+examine grass
+examine stable
+enter stable
+examine horses
+examine bench
+sit on bench
+w
+
+# Mine
+smell
+examine hill chain
+examine mine
+examine smoke
+examine man
+talk to man
+shoot man
+examine shrub
+take hankie
+examine hankie
+smell hankie
+e
+e
+nw
+
+# Sheriff
+talk to Sheriff
+# I think I've found Lucy's handkerchief!
+1
+# End
+0
+out
+s
+examine counter
+examine cookie
+take cookie
+talk to woman
+# Have you seen Lucy?
+1
+# I think I've found Lucy's hankie.
+1
+# Close to the mine entrance west of here.
+1
+# End
+0
+n
+ne
+
+# Barber
+smell
+examine stuff
+examine tilt chair
+pull tilt chair
+examine mirror
+examine parrot
+talk to parrot
+talk to parrot
+examine barber
+talk to barber
+# Moin? Is that French or something?
+1
+# What brought you here?
+1
+# Gunshot wound? I thought you were a barber.
+1
+# So Molly is your wife?
+1
+# Why was Molly at sea with you again?
+1
+# Any idea how to get into the mine?
+2
+# End
+0
+take Molly
+give cookie to Molly
+take Molly
+talk to Marten
+# May I borrow Molly for a little while?
+2
+# End
+0
+take Molly
+out
+w
+s
+
+# Wind Pump
+smell
+examine windpump
+examine mast
+climb mast
+w
+
+# Hill Chain
+smell
+examine boulder field
+look
+examine boulder
+examine crevice
+e
+n
+e
+n
+
+# General Store
+examine bell
+examine counter
+examine shelves
+examine labels
+examine man
+buy tools
+talk to Bill
+# How's it going?
+1
+# What's for sale here?
+1
+# I can't read most of the labels.
+1
+! S
+# Do you happen to know where Lucy is?
+1
+# Lucy has gone missing.
+1
+# Do you have a chisel or something like that?
+1
+# What the heck is a gooseneck?
+1
+# Can I have a look maybe?
+1
+# Where are your pince-nez?
+1
+# End
+0
+out
+e
+
+# Gallows
+smell
+examine gallows
+examine noose
+take noose
+examine crosses
+examine town
+examine platform
+look under platform
+n
+
+# Cemetery
+examine bushes
+smell
+examine crosses
+1
+2
+3
+4
+0
+s
+w
+n
+
+# General Store
+talk to Bill
+# Um, what is your wife's name?
+1
+# End
+0
+out
+e
+n
+examine crosses
+1
+2
+0
+examine graves
+# Mathilda's grave (Bill's wife)
+2
+0
+run to Bill
+talk to Bill
+# I believe I've found your pince-nez.
+1
+# Could you have another look for that crowbar now?
+1
+# End
+0
+take crowbar
+examine crowbar
+s
+w
+s
+w
+
+# Hill Chain
+use crowbar with crevice
+run to Bill
+talk to Bill
+# I could use a long pole or something.
+1
+# End
+0
+run to windpump
+examine mast
+take rod
+examine rod
+w
+use rod on crevice
+! S
+! S
+take rod
+n
+
+# Flashback 2 / Cave
+! S
+smell
+e
+w
+n
+examine rock
+s
+e
+n
+e
+s
+
+# Saloon
+examine ceiling
+examine lamp
+take lamp
+use crowbar on lamp
+pull chair
+take lamp
+talk to woman
+# Can I borrow that lamp?
+1
+# End
+0
+use chair
+take lamp
+examine lamp
+turn on lamp
+talk to woman
+down
+talk to woman
+# Do you have anything I could use to light the lamp?
+1
+# End
+0
+n
+n
+
+# General Store
+talk to Bill
+# Do you sell matches?
+1
+# End
+0
+take matches
+examine matches
+use matches on lamp
+run to cave
+
+# Cave
+n
+examine precipice
+down
+run to Bill
+talk to Bill
+# I have to climb down the mine. Do you have a rope or something?
+1
+# What did they need the rope for?
+1
+# End
+0
+s
+ne
+
+# Barber
+talk to Marten
+# Were you there when the gallows were built?
+1
+# Bill said there must have been a lot of rope left over, do you know where that went?
+1
+# End
+0
+out
+e
+
+# Galgen
+examine platform
+examine sand
+take sand
+w
+n
+talk to Bill
+# Do you have a shovel for me?
+1
+# End
+0
+s
+ne
+talk to Marten
+# You must have a shovel, right?
+1
+# May I borrow your shovel? It is really important.
+1
+# End
+0
+out
+e
+dig sand with shovel
+examine plate
+use crowbar on plate
+examine opening
+examine rope
+take rope
+run to cave
+
+
+# Cave
+use rope on precipice
+tie rope to rock
+down
+! S
+! S
+
+# Vault
+smell
+examine vats
+examine guard
+examine niche
+examine Michael
+talk to guard
+shoot guard
+drop hankie
+s
+hit guard
+hit guard with shovel
+talk to guard
+examine guard
+look
+examine niche
+up
+talk to couple
+# Everything okay with you?
+1
+# What happened to you?
+1
+look
+e
+up
+
+# Showdown
+hit Thompson with shovel
+shoot men
+look
+examine cart
+shoot cart
+look
+examine barrels
+shoot barrels
+hit man with crowbar
+examine wedge
+use revolver with wedge
+
+# At the Sheriff's
+! S
+out
+take draft notice
+talk to Dunder
+# What happened?
+1
+# How's your head, Michael?
+1
+# What were you doing there anyway?
+1
+! S
+# What were they doing in that cave?
+1
+# What happened to your mother?
+! S
+1
+# Where is Thompson?
+! S
+1
+# What exactly did they produce?
+! S
+1
+# What an effort!
+! S
+1
+# Michael, do you know this woman?
+! S
+1
+# Where was she going?
+! S
+1
+# I have to get there as quickly as possible!
+! S
+1
+# Here's your hankie. It sure helped me a lot.
+! S
+1
+# End
+! S
+1
+
+# Steppe
+! S
+! S
+look
+examine Billy
+run to saloon
+quit
+yes
