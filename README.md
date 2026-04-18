@@ -8,18 +8,31 @@ https://github.com/user-attachments/assets/c61243db-b08b-4f67-a84c-e81234af3b02
 
 ## Features
 
-- Select up to **3 target windows** to receive commands simultaneously
-- **Focus Mode** — activates the target window before each command and uses
-  `SendKeys` with a configurable per-key delay, for apps that ignore
-  background input (e.g. GUI interpreters)
+- Select up to **2 target windows** to receive commands simultaneously
+- **9 keystroke delivery methods** selectable via a drop-down, covering
+  background (no focus) and foreground (focus) approaches:
+
+  | Method | Focus? | Description |
+  |---|---|---|
+  | PostMessage | No | Async WM_KEYDOWN + WM_CHAR + WM_KEYUP via PostMessage |
+  | SendMessage | No | Sync WM_KEYDOWN + WM_CHAR + WM_KEYUP via SendMessage |
+  | Post WM_CHAR only | No | Async WM_CHAR only via PostMessage |
+  | Send WM_CHAR only | No | Sync WM_CHAR only via SendMessage |
+  | SendKeys (focus) | Yes | System.Windows.Forms.SendKeys.SendWait — journal-hook based |
+  | SendInput Unicode (focus) | Yes | SendInput with KEYEVENTF_UNICODE — hardware-level Unicode |
+  | SendInput VK (focus) | Yes | SendInput with virtual-key codes + scan codes |
+  | SendInput Scan (focus) | Yes | SendInput with KEYEVENTF_SCANCODE — raw hardware scan codes |
+  | keybd_event (focus) | Yes | Legacy keybd_event API — sometimes bypasses UIPI |
+
 - Dark theme by default, DPI-aware (WPF)
 - Load walkthrough files with commands, comments, and special directives
-- Configurable **line delay** between commands and **key delay** within a command
+- Configurable **line delay** between commands and **key delay** between
+  individual keystrokes
 - **Mouse-wheel scrolling** on the Delay (step 100), Key delay (step 5), and
   Line (step 1) fields for quick adjustment
 - Line-by-line progress tracking with live preview
 - Settings automatically saved and restored between sessions (including
-  window position)
+  window position and selected method)
 - Single portable `.exe` — no installer needed
 - Phantom and system windows are filtered out of the window list
 
@@ -36,10 +49,11 @@ dotnet publish PunyPlayer -c Release -r win-x64 --self-contained -p:PublishSingl
 1. Start **PunyPlayer**
 2. Click **Refresh** to list open windows, then select up to 3 target windows
 3. Enter the path to a walkthrough file (or use **Browse...**)
-4. Set the **Delay** between commands (milliseconds) and **Key** delay for
-   Focus Mode
+4. Set the **Delay** between commands (milliseconds) and **Key** delay
+   between individual keystrokes
 5. Optionally adjust the starting **Line** number
-6. Toggle **Focus Mode** when the target window requires foreground input
+6. Choose a **send method** from the drop-down — try different methods
+   if the target application does not respond to keystrokes
 7. Click **Run** to begin playback; click **Stop** to pause
 
 ## Walkthrough file format
@@ -62,6 +76,7 @@ take lamp
 | `! Delay <ms>` | Pause for the given number of milliseconds |
 | `! WIN="Agon": exec playgame.txt` | If window title contains "Agon", send the line "exec playgame.txt" |
 | `! EXEC="C:\Emu\dfrotz.exe"` | Start dfrotz.exe |
+| `! SWAP(y,z)` | Swap characters `y` ↔ `z` (case-insensitive) in all following lines |
 | _(any other text)_ | Sent as keystrokes to the target window |
 
 Empty and whitespace-only lines are skipped.  Bang commands (`!`) do not
@@ -103,8 +118,8 @@ The file is human-readable JSON with comments describing each field:
   "keyDelay": 30,
   // The next line number to play (1-based)
   "currentLine": 1,
-  // Whether Focus Mode is enabled
-  "focusMode": true
+  // Keystroke delivery method (e.g. PostMessage, SendKeys, InputVK)
+  "sendMethod": "PostMessage"
 }
 ```
 

@@ -12,8 +12,9 @@
 PunyPlayer is a Windows desktop application that sends walkthrough commands
 to interactive fiction interpreters (or any window) line by line, with
 configurable delay between commands. Up to 3 target windows can receive
-commands simultaneously. Focus Mode activates the target window and uses
-`SendKeys` with a per-key delay for apps that ignore background input.
+commands simultaneously. A drop-down offers 9 different keystroke delivery
+methods (4 background, 5 foreground/focus) so users can pick whichever
+works best with their target application.
 
 ### Project structure
 
@@ -32,9 +33,10 @@ commands simultaneously. Focus Mode activates the target window and uses
 | `PunyPlayer/App.xaml` / `App.xaml.cs` | WPF application + dark theme resources |
 | `PunyPlayer/MainWindow.xaml` / `.cs` | Main window — UI layout, playback logic, mouse-wheel handlers for Delay/Key/Line fields |
 | `PunyPlayer/TranscriptReader.cs` | Reads and parses walkthrough transcript files |
-| `PunyPlayer/TextSender.cs` | Sends keystrokes via WriteConsoleInput (background) or SendKeys (Focus Mode) with per-key delay |
-| `PunyPlayer/NativeMethods.cs` | Win32 P/Invoke declarations — `EnumWindows`, `GetWindow(GW_OWNER)`, `AttachThreadInput`, etc. Filters phantom windows (`Einstellungen`, `Windows-Eingabeerfahrung`) and excludes PunyPlayer itself |
-| `PunyPlayer/Settings.cs` | Save/load settings to `PunyPlayer.jsonc` — includes delay, keyDelay, focusMode, window position |
+| `PunyPlayer/SendMethod.cs` | `SendMethod` enum (9 methods) and `SendMethodExtensions` — display names, focus flag |
+| `PunyPlayer/TextSender.cs` | Sends keystrokes via WriteConsoleInput for console targets; dispatches to one of 9 methods for GUI targets |
+| `PunyPlayer/NativeMethods.cs` | Win32 P/Invoke declarations — `EnumWindows`, `GetWindow(GW_OWNER)`, `AttachThreadInput`, `SendInput`, `keybd_event`, `VkKeyScanW`, etc. Filters phantom windows and excludes PunyPlayer itself |
+| `PunyPlayer/Settings.cs` | Save/load settings to `PunyPlayer.jsonc` — includes delay, keyDelay, sendMethod, window position |
 
 ### Test files
 
@@ -42,7 +44,8 @@ commands simultaneously. Focus Mode activates the target window and uses
 |---|---|
 | `PunyPlayer.Tests/TranscriptReaderTests.cs` | Transcript parsing, line types, clamping |
 | `PunyPlayer.Tests/SettingsTests.cs` | Settings defaults, save/load round-trip, JSONC |
-| `PunyPlayer.Tests/TextSenderTests.cs` | SendKeys special-character escaping |
+| `PunyPlayer.Tests/TextSenderTests.cs` | Text sender helper routines |
+| `PunyPlayer.Tests/SendMethodTests.cs` | Enum coverage, display names, focus flags |
 | `PunyPlayer.Tests/NativeMethodsTests.cs` | Window enumeration, title exclusion filters |
 
 ---

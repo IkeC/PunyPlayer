@@ -13,7 +13,7 @@ public class SettingsTests
         Assert.Equal(1500, s.Delay);
         Assert.Equal(30, s.KeyDelay);
         Assert.Equal(1, s.CurrentLine);
-        Assert.True(s.FocusMode);
+        Assert.Equal("SendKeys", s.SendMethod);
     }
 
     [Fact]
@@ -69,7 +69,7 @@ public class SettingsTests
             Assert.Contains("delay", content);
             Assert.Contains("keyDelay", content);
             Assert.Contains("currentLine", content);
-            Assert.Contains("focusMode", content);
+            Assert.Contains("sendMethod", content);
         }
         finally { File.Delete(tmp); }
     }
@@ -165,6 +165,46 @@ public class SettingsTests
             File.WriteAllText(tmp, """{ "selectedWindow": "OldWin" }""");
             var loaded = AppSettings.Load(tmp);
             Assert.Equal("OldWin", loaded.SelectedWindow1);
+        }
+        finally { File.Delete(tmp); }
+    }
+
+    [Fact]
+    public void BackwardsCompat_FocusModeTrue_MapsSendKeys()
+    {
+        var tmp = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(tmp, """{ "focusMode": true }""");
+            var loaded = AppSettings.Load(tmp);
+            Assert.Equal("SendKeys", loaded.SendMethod);
+        }
+        finally { File.Delete(tmp); }
+    }
+
+    [Fact]
+    public void BackwardsCompat_FocusModeFalse_MapsPostMessage()
+    {
+        var tmp = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(tmp, """{ "focusMode": false }""");
+            var loaded = AppSettings.Load(tmp);
+            Assert.Equal("PostMessage", loaded.SendMethod);
+        }
+        finally { File.Delete(tmp); }
+    }
+
+    [Fact]
+    public void SendMethod_SaveAndLoad_RoundTrip()
+    {
+        var tmp = Path.GetTempFileName();
+        try
+        {
+            var s = new AppSettings { SendMethod = "InputVK" };
+            s.Save(tmp);
+            var loaded = AppSettings.Load(tmp);
+            Assert.Equal("InputVK", loaded.SendMethod);
         }
         finally { File.Delete(tmp); }
     }

@@ -31,6 +31,12 @@ public partial class MainWindow : Window
         Loaded += OnLoaded;
     }
 
+    private class SendMethodItem
+    {
+        public SendMethod Method { get; init; }
+        public override string ToString() => Method.DisplayName();
+    }
+
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         var s = _loadedSettings;
@@ -38,7 +44,15 @@ public partial class MainWindow : Window
         DelayBox.Text = s.Delay.ToString();
         KeyDelayBox.Text = s.KeyDelay.ToString();
         LineBox.Text = "1";
-        FocusModeToggle.IsChecked = s.FocusMode;
+
+        // Populate send-method combobox
+        SendMethodCombo.ItemsSource = SendMethodExtensions.All
+            .Select(m => new SendMethodItem { Method = m }).ToList();
+        var saved = Enum.TryParse<SendMethod>(s.SendMethod, true, out var parsed)
+            ? parsed : SendMethod.PostMessage;
+        SendMethodCombo.SelectedIndex = SendMethodExtensions.All
+            .Select((m, i) => (m, i)).FirstOrDefault(x => x.m == saved).i;
+
         RefreshWindows(s);
         ReloadTranscript();
         UpdateLinePreview();
@@ -50,7 +64,6 @@ public partial class MainWindow : Window
     {
         var prev1 = WindowCombo1.SelectedItem?.ToString();
         var prev2 = WindowCombo2.SelectedItem?.ToString();
-        var prev3 = WindowCombo3.SelectedItem?.ToString();
 
         _windows.Clear();
         _windows.AddRange(NativeMethods.GetVisibleWindows()
@@ -58,7 +71,7 @@ public partial class MainWindow : Window
 
         var titles = new List<string> { "" };
         titles.AddRange(_windows.Select(w => w.Title));
-        foreach (var combo in new[] { WindowCombo1, WindowCombo2, WindowCombo3 })
+        foreach (var combo in new[] { WindowCombo1, WindowCombo2 })
         {
             combo.ItemsSource = null;
             combo.ItemsSource = titles;
@@ -66,7 +79,6 @@ public partial class MainWindow : Window
 
         RestoreSelection(WindowCombo1, prev1 ?? settings?.SelectedWindow1);
         RestoreSelection(WindowCombo2, prev2 ?? settings?.SelectedWindow2);
-        RestoreSelection(WindowCombo3, prev3 ?? settings?.SelectedWindow3);
     }
 
     private static void RestoreSelection(System.Windows.Controls.ComboBox combo, string? title)
@@ -97,9 +109,7 @@ public partial class MainWindow : Window
         _reader.Load(ResolveFilePath(FilePathBox.Text));
         ClampLineInput();
         UpdateLinePreview();
-        StatusText.Text = _reader.LineCount > 0
-            ? $"{_reader.LineCount} lines loaded"
-            : "No file loaded";
+        LineCountBox.Text = _reader.LineCount > 0 ? _reader.LineCount.ToString() : "0";
     }
 
     private static string ResolveFilePath(string path) =>
@@ -187,7 +197,7 @@ public partial class MainWindow : Window
     private List<IntPtr> GetSelectedHandles()
     {
         var handles = new List<IntPtr>();
-        foreach (var combo in new[] { WindowCombo1, WindowCombo2, WindowCombo3 })
+        foreach (var combo in new[] { WindowCombo1, WindowCombo2 })
         {
             if (combo.SelectedIndex > 0 && combo.SelectedIndex <= _windows.Count)
                 handles.Add(_windows[combo.SelectedIndex - 1].Handle);
@@ -211,13 +221,13 @@ public partial class MainWindow : Window
         RunButton.Content = "Stop";
         RunButton.Style = (Style)FindResource("StopButton");
         SetControlsEnabled(false);
-        bool focusMode  = FocusModeToggle.IsChecked == true;
-        int keyDelayMs  = int.TryParse(KeyDelayBox.Text, out var kd) ? kd : 30;
+        var method     = (SendMethodCombo.SelectedItem as SendMethodItem)?.Method ?? SendMethod.PostMessage;
+        int keyDelayMs = int.TryParse(KeyDelayBox.Text, out var kd) ? kd : 30;
 
         using var cts = new CancellationTokenSource();
         _cts = cts;
 
-        try { await PlaybackLoop(handles, focusMode, keyDelayMs, cts.Token); }
+        try { await PlaybackLoop(handles, method, keyDelayMs, cts.Token); }
         catch (OperationCanceledException) { }
         finally
         {
@@ -233,20 +243,20 @@ public partial class MainWindow : Window
     {
         WindowCombo1.IsEnabled = enabled;
         WindowCombo2.IsEnabled = enabled;
-        WindowCombo3.IsEnabled = enabled;
         RefreshButton.IsEnabled = enabled;
         FilePathBox.IsEnabled = enabled;
         BrowseButton.IsEnabled = enabled;
         KeyDelayBox.IsEnabled = enabled;
-        FocusModeToggle.IsEnabled = enabled;
+        SendMethodCombo.IsEnabled = enabled;
         DelayBox.IsEnabled = enabled;
         LineBox.IsEnabled = enabled;
         ResetButton.IsEnabled = enabled;
     }
 
-    private async Task PlaybackLoop(List<IntPtr> handles, bool focusMode, int keyDelayMs, CancellationToken ct)
+    private async Task PlaybackLoop(List<IntPtr> handles, SendMethod method, int keyDelayMs, CancellationToken ct)
     {
         int delay = int.TryParse(DelayBox.Text, out var d) ? d : 1000;
+        var activeSwaps = new List<(char From, char To)>();
 
         while (!ct.IsCancellationRequested)
         {
@@ -255,7 +265,6 @@ public partial class MainWindow : Window
 
             var parsed = _reader.Parse(line);
             UpdateLinePreview();
-            StatusText.Text = $"Playing line {line}/{_reader.LineCount}";
 
             switch (parsed.Type)
             {
@@ -265,19 +274,13 @@ public partial class MainWindow : Window
 
                 case LineType.Enter:
                     foreach (var h in handles)
-                    {
-                        if (focusMode) TextSender.SendEnterFocused(h);
-                        else TextSender.SendEnter(h);
-                    }
+                        TextSender.SendEnter(h, method);
                     await Task.Delay(delay, ct);
                     break;
 
                 case LineType.Space:
                     foreach (var h in handles)
-                    {
-                        if (focusMode) TextSender.SendSpaceFocused(h);
-                        else TextSender.SendSpace(h);
-                    }
+                        TextSender.SendSpace(h, method);
                     await Task.Delay(delay, ct);
                     break;
 
@@ -287,10 +290,7 @@ public partial class MainWindow : Window
 
                 case LineType.Text:
                     foreach (var h in handles)
-                    {
-                        if (focusMode) TextSender.SendCommandFocused(h, parsed.RawText, keyDelayMs);
-                        else           TextSender.SendCommand(h, parsed.RawText);
-                    }
+                        TextSender.SendCommand(h, TranscriptReader.ApplySwaps(parsed.RawText, activeSwaps), method, keyDelayMs);
                     await Task.Delay(delay, ct);
                     break;
 
@@ -300,11 +300,12 @@ public partial class MainWindow : Window
                         .Select(w => w.Handle)
                         .ToList();
                     foreach (var h in matchingHandles)
-                    {
-                        if (focusMode) TextSender.SendCommandFocused(h, parsed.CommandText, keyDelayMs);
-                        else           TextSender.SendCommand(h, parsed.CommandText);
-                    }
+                        TextSender.SendCommand(h, TranscriptReader.ApplySwaps(parsed.CommandText, activeSwaps), method, keyDelayMs);
                     await Task.Delay(delay, ct);
+                    break;
+
+                case LineType.Swap:
+                    activeSwaps.Add((parsed.SwapFrom, parsed.SwapTo));
                     break;
 
                 case LineType.Exec:
@@ -316,13 +317,13 @@ public partial class MainWindow : Window
                     }
                     catch (Exception ex)
                     {
-                        StatusText.Text = $"EXEC failed: {ex.Message}";
+                        // EXEC failed, continue playback
                     }
                     await Task.Delay(delay, ct);
                     break;
             }
 
-            if (parsed.Type is LineType.Comment or LineType.Empty)
+            if (parsed.Type is LineType.Comment or LineType.Empty or LineType.Swap)
             {
                 if (line >= _reader.LineCount) break;
                 LineBox.Text = (line + 1).ToString();
@@ -332,8 +333,6 @@ public partial class MainWindow : Window
             if (line >= _reader.LineCount) break;
             LineBox.Text = (line + 1).ToString();
         }
-
-        StatusText.Text = "Playback finished";
     }
 
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
@@ -345,12 +344,12 @@ public partial class MainWindow : Window
         {
             SelectedWindow1 = WindowCombo1.SelectedItem?.ToString() ?? "",
             SelectedWindow2 = WindowCombo2.SelectedItem?.ToString() ?? "",
-            SelectedWindow3 = WindowCombo3.SelectedItem?.ToString() ?? "",
+            SelectedWindow3 = "",
             FilePath = FilePathBox.Text,
             Delay = delay > 0 ? delay : 1500,
             KeyDelay = keyDelay >= 0 ? keyDelay : 30,
             CurrentLine = currentLine > 0 ? currentLine : 1,
-            FocusMode = FocusModeToggle.IsChecked == true,
+            SendMethod = ((SendMethodCombo.SelectedItem as SendMethodItem)?.Method ?? SendMethod.PostMessage).ToString(),
             WindowLeft = Left,
             WindowTop = Top,
             WindowWidth = Width,

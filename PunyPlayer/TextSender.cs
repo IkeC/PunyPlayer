@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+
 namespace PunyPlayer;
 
 public static class TextSender
@@ -21,88 +23,301 @@ public static class TextSender
 
     // ── Public API ────────────────────────────────────────────────────────────
 
-    /// <summary>Send text + Enter without focusing the window.</summary>
-    public static void SendCommand(IntPtr hwnd, string text)
+    /// <summary>Send text + Enter to the target window using the chosen method.</summary>
+    public static void SendCommand(IntPtr hwnd, string text, SendMethod method, int keyDelayMs = 0)
     {
-        var chars = BuildTextInput(text);
-        var enter = BuildEnterInput();
-        // Combine into one WriteConsoleInput call for atomicity
-        var all   = chars.Concat(enter).ToArray();
-        if (!TrySendViaConsole(hwnd, all))
-            PostKeyEvents(hwnd, all);
-    }
-
-    /// <summary>Send only Enter without focusing the window.</summary>
-    public static void SendEnter(IntPtr hwnd)
-    {
-        if (!TrySendViaConsole(hwnd, BuildEnterInput()))
-            PostKeyEvents(hwnd, BuildEnterInput());
-    }
-
-    /// <summary>Send only Space without focusing the window.</summary>
-    public static void SendSpace(IntPtr hwnd)
-    {
-        if (!TrySendViaConsole(hwnd, [' ']))
-            PostKeyEvents(hwnd, [' ']);
-    }
-
-    /// <summary>
-    /// Focus the window, then send text + Enter via SendKeys with optional per-key delay.
-    /// Uses AttachThreadInput to reliably force the target to foreground even when
-    /// the calling process is not itself the current foreground process.
-    /// Keeps the thread attached throughout the send so focus does not escape before
-    /// all keystrokes are delivered.
-    /// </summary>
-    public static void SendCommandFocused(IntPtr hwnd, string text, int keyDelayMs)
-    {
-        bool attached = BeginForceForeground(hwnd, out uint targetThread);
-        try
+        var all = BuildTextInput(text).Concat(BuildEnterInput()).ToArray();
+        if (method.RequiresFocus())
         {
-            foreach (char c in text)
-            {
-                string k = "+^%~(){}[]".Contains(c) ? "{" + c + "}" : c.ToString();
-                System.Windows.Forms.SendKeys.SendWait(k);
-                if (keyDelayMs > 0) Thread.Sleep(keyDelayMs);
-            }
-            System.Windows.Forms.SendKeys.SendWait("{ENTER}");
+            ForceForeground(hwnd);
+            DispatchFocused(all, method, keyDelayMs);
         }
-        finally
+        else
         {
-            if (attached) NativeMethods.AttachThreadInput(NativeMethods.GetCurrentThreadId(), targetThread, false);
+            if (!TrySendViaConsole(hwnd, all))
+                DispatchBackground(hwnd, all, method, keyDelayMs);
         }
     }
 
-    /// <summary>Focus the window and send Enter via SendKeys.</summary>
-    public static void SendEnterFocused(IntPtr hwnd)
+    /// <summary>Send only Enter to the target window using the chosen method.</summary>
+    public static void SendEnter(IntPtr hwnd, SendMethod method)
     {
-        bool attached = BeginForceForeground(hwnd, out uint targetThread);
-        try   { System.Windows.Forms.SendKeys.SendWait("{ENTER}"); }
-        finally { if (attached) NativeMethods.AttachThreadInput(NativeMethods.GetCurrentThreadId(), targetThread, false); }
+        char[] chars = ['\r'];
+        if (method.RequiresFocus())
+        {
+            ForceForeground(hwnd);
+            DispatchFocused(chars, method, 0);
+        }
+        else
+        {
+            if (!TrySendViaConsole(hwnd, chars))
+                DispatchBackground(hwnd, chars, method, 0);
+        }
     }
 
-    /// <summary>Focus the window and send Space via SendKeys.</summary>
-    public static void SendSpaceFocused(IntPtr hwnd)
+    /// <summary>Send only Space to the target window using the chosen method.</summary>
+    public static void SendSpace(IntPtr hwnd, SendMethod method)
     {
-        bool attached = BeginForceForeground(hwnd, out uint targetThread);
-        try   { System.Windows.Forms.SendKeys.SendWait(" "); }
-        finally { if (attached) NativeMethods.AttachThreadInput(NativeMethods.GetCurrentThreadId(), targetThread, false); }
+        char[] chars = [' '];
+        if (method.RequiresFocus())
+        {
+            ForceForeground(hwnd);
+            DispatchFocused(chars, method, 0);
+        }
+        else
+        {
+            if (!TrySendViaConsole(hwnd, chars))
+                DispatchBackground(hwnd, chars, method, 0);
+        }
     }
 
-    /// <summary>
-    /// Reliably bring hwnd to the foreground using AttachThreadInput.
-    /// Returns the target thread ID and whether AttachThreadInput was called;
-    /// the <b>caller</b> must detach after sending is done.
-    /// </summary>
-    private static bool BeginForceForeground(IntPtr hwnd, out uint targetThread)
+    // ── Focus management ─────────────────────────────────────────────────────
+    // Attach → BringWindowToTop + SetForegroundWindow → Detach → settle.
+    // Detaching before sending avoids queue-sharing locks that block SDL event loops.
+
+    private static void ForceForeground(IntPtr hwnd)
     {
-        targetThread = NativeMethods.GetWindowThreadProcessId(hwnd, out _);
+        uint targetThread = NativeMethods.GetWindowThreadProcessId(hwnd, out _);
         uint ownThread = NativeMethods.GetCurrentThreadId();
-        bool attached  = (ownThread != targetThread)
-                      && NativeMethods.AttachThreadInput(ownThread, targetThread, true);
+        bool attached = (ownThread != targetThread)
+                     && NativeMethods.AttachThreadInput(ownThread, targetThread, true);
         NativeMethods.BringWindowToTop(hwnd);
         NativeMethods.SetForegroundWindow(hwnd);
-        Thread.Sleep(50);  // let focus settle while still attached
-        return attached;
+        if (attached) NativeMethods.AttachThreadInput(ownThread, targetThread, false);
+        Thread.Sleep(50);
+    }
+
+    // ── Focused dispatch (requires foreground) ───────────────────────────────
+
+    private static void DispatchFocused(char[] chars, SendMethod method, int keyDelayMs)
+    {
+        foreach (char c in chars)
+        {
+            switch (method)
+            {
+                case SendMethod.SendKeys:
+                    if (c == '\r')
+                        System.Windows.Forms.SendKeys.SendWait("{ENTER}");
+                    else if (c == ' ')
+                        System.Windows.Forms.SendKeys.SendWait(" ");
+                    else
+                    {
+                        string k = "+^%~(){}[]".Contains(c) ? "{" + c + "}" : c.ToString();
+                        System.Windows.Forms.SendKeys.SendWait(k);
+                    }
+                    break;
+
+                case SendMethod.InputUnicode:
+                    SendInputUnicodeChar(c);
+                    break;
+
+                case SendMethod.InputVK:
+                    SendInputVKChar(c);
+                    break;
+
+                case SendMethod.InputScancode:
+                    SendInputScancodeChar(c);
+                    break;
+
+                case SendMethod.KeybdEvent:
+                    SendKeybdEventChar(c);
+                    break;
+            }
+            if (keyDelayMs > 0) Thread.Sleep(keyDelayMs);
+        }
+    }
+
+    // ── Background dispatch (no focus needed) ────────────────────────────────
+
+    private static void DispatchBackground(IntPtr hwnd, IEnumerable<char> chars, SendMethod method, int keyDelayMs)
+    {
+        switch (method)
+        {
+            case SendMethod.PostMessage:
+                PostFullKeyEvents(hwnd, chars, keyDelayMs);
+                break;
+            case SendMethod.SendMessage:
+                SendFullKeyEvents(hwnd, chars, keyDelayMs);
+                break;
+            case SendMethod.PostCharOnly:
+                PostCharOnlyEvents(hwnd, chars, keyDelayMs);
+                break;
+            case SendMethod.SendCharOnly:
+                SendCharOnlyEvents(hwnd, chars, keyDelayMs);
+                break;
+        }
+    }
+
+    // ── PostMessage: WM_KEYDOWN + WM_CHAR + WM_KEYUP (async) ────────────────
+
+    private static void PostFullKeyEvents(IntPtr hwnd, IEnumerable<char> chars, int keyDelayMs)
+    {
+        foreach (var c in chars)
+        {
+            ushort vk = CharToVk(c);
+            if (vk != 0)
+                NativeMethods.PostMessage(hwnd, NativeMethods.WM_KEYDOWN, (IntPtr)vk, BuildKeyLParam(vk, false));
+            NativeMethods.PostMessage(hwnd, NativeMethods.WM_CHAR, (IntPtr)c, BuildCharLParam(vk));
+            if (vk != 0)
+                NativeMethods.PostMessage(hwnd, NativeMethods.WM_KEYUP, (IntPtr)vk, BuildKeyLParam(vk, true));
+            if (keyDelayMs > 0) Thread.Sleep(keyDelayMs);
+        }
+    }
+
+    // ── SendMessage: WM_KEYDOWN + WM_CHAR + WM_KEYUP (sync) ─────────────────
+
+    private static void SendFullKeyEvents(IntPtr hwnd, IEnumerable<char> chars, int keyDelayMs)
+    {
+        foreach (var c in chars)
+        {
+            ushort vk = CharToVk(c);
+            if (vk != 0)
+                SendMsg(hwnd, NativeMethods.WM_KEYDOWN, (IntPtr)vk, BuildKeyLParam(vk, false));
+            SendMsg(hwnd, NativeMethods.WM_CHAR, (IntPtr)c, BuildCharLParam(vk));
+            if (vk != 0)
+                SendMsg(hwnd, NativeMethods.WM_KEYUP, (IntPtr)vk, BuildKeyLParam(vk, true));
+            if (keyDelayMs > 0) Thread.Sleep(keyDelayMs);
+        }
+    }
+
+    // ── PostMessage: WM_CHAR only (async) ────────────────────────────────────
+
+    private static void PostCharOnlyEvents(IntPtr hwnd, IEnumerable<char> chars, int keyDelayMs)
+    {
+        foreach (var c in chars)
+        {
+            NativeMethods.PostMessage(hwnd, NativeMethods.WM_CHAR, (IntPtr)c, BuildCharLParam(CharToVk(c)));
+            if (keyDelayMs > 0) Thread.Sleep(keyDelayMs);
+        }
+    }
+
+    // ── SendMessage: WM_CHAR only (sync) ─────────────────────────────────────
+
+    private static void SendCharOnlyEvents(IntPtr hwnd, IEnumerable<char> chars, int keyDelayMs)
+    {
+        foreach (var c in chars)
+        {
+            SendMsg(hwnd, NativeMethods.WM_CHAR, (IntPtr)c, BuildCharLParam(CharToVk(c)));
+            if (keyDelayMs > 0) Thread.Sleep(keyDelayMs);
+        }
+    }
+
+    // ── SendInput: Unicode (KEYEVENTF_UNICODE, no VK codes) ─────────────────
+
+    private static void SendInputUnicodeChar(char c)
+    {
+        var inputs = new NativeMethods.INPUT[]
+        {
+            MakeUnicodeInput(c, false),
+            MakeUnicodeInput(c, true),
+        };
+        NativeMethods.SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<NativeMethods.INPUT>());
+    }
+
+    private static NativeMethods.INPUT MakeUnicodeInput(char c, bool keyUp) => new()
+    {
+        type = NativeMethods.INPUT_KEYBOARD,
+        U = new() { ki = new()
+        {
+            wVk = 0,
+            wScan = c,
+            dwFlags = NativeMethods.KEYEVENTF_UNICODE | (keyUp ? NativeMethods.KEYEVENTF_KEYUP : 0),
+        }}
+    };
+
+    // ── SendInput: VK codes + scan codes ─────────────────────────────────────
+
+    private static void SendInputVKChar(char c)
+    {
+        var (vk, shift) = CharToVkFull(c);
+        if (vk == 0) return;
+        var scan = (ushort)(NativeMethods.MapVirtualKey(vk, 0) & 0xFF);
+
+        if (shift) SendInputKey(NativeMethods.VK_SHIFT, false);
+
+        var inputs = new NativeMethods.INPUT[]
+        {
+            MakeVKInput(vk, scan, false),
+            MakeVKInput(vk, scan, true),
+        };
+        NativeMethods.SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<NativeMethods.INPUT>());
+
+        if (shift) SendInputKey(NativeMethods.VK_SHIFT, true);
+    }
+
+    private static NativeMethods.INPUT MakeVKInput(ushort vk, ushort scan, bool keyUp) => new()
+    {
+        type = NativeMethods.INPUT_KEYBOARD,
+        U = new() { ki = new()
+        {
+            wVk = vk,
+            wScan = scan,
+            dwFlags = keyUp ? NativeMethods.KEYEVENTF_KEYUP : 0,
+        }}
+    };
+
+    private static void SendInputKey(ushort vk, bool keyUp)
+    {
+        var scan = (ushort)(NativeMethods.MapVirtualKey(vk, 0) & 0xFF);
+        var inputs = new NativeMethods.INPUT[]
+        {
+            MakeVKInput(vk, scan, keyUp),
+        };
+        NativeMethods.SendInput(1, inputs, Marshal.SizeOf<NativeMethods.INPUT>());
+    }
+
+    // ── SendInput: raw scan codes (KEYEVENTF_SCANCODE, no VK) ───────────────
+
+    private static void SendInputScancodeChar(char c)
+    {
+        var (vk, shift) = CharToVkFull(c);
+        if (vk == 0) return;
+        var scan = (ushort)(NativeMethods.MapVirtualKey(vk, 0) & 0xFF);
+
+        if (shift)
+        {
+            var shiftScan = (ushort)(NativeMethods.MapVirtualKey(NativeMethods.VK_SHIFT, 0) & 0xFF);
+            SendInputRawScan(shiftScan, false);
+        }
+
+        SendInputRawScan(scan, false);
+        SendInputRawScan(scan, true);
+
+        if (shift)
+        {
+            var shiftScan = (ushort)(NativeMethods.MapVirtualKey(NativeMethods.VK_SHIFT, 0) & 0xFF);
+            SendInputRawScan(shiftScan, true);
+        }
+    }
+
+    private static void SendInputRawScan(ushort scanCode, bool keyUp)
+    {
+        uint flags = NativeMethods.KEYEVENTF_SCANCODE;
+        if (keyUp) flags |= NativeMethods.KEYEVENTF_KEYUP;
+        var inputs = new NativeMethods.INPUT[]
+        {
+            new()
+            {
+                type = NativeMethods.INPUT_KEYBOARD,
+                U = new() { ki = new() { wVk = 0, wScan = scanCode, dwFlags = flags } }
+            },
+        };
+        NativeMethods.SendInput(1, inputs, Marshal.SizeOf<NativeMethods.INPUT>());
+    }
+
+    // ── keybd_event: legacy hardware injection ───────────────────────────────
+
+    private static void SendKeybdEventChar(char c)
+    {
+        var (vk, shift) = CharToVkFull(c);
+        if (vk == 0) return;
+        byte scan = (byte)(NativeMethods.MapVirtualKey(vk, 0) & 0xFF);
+        byte shiftScan = (byte)(NativeMethods.MapVirtualKey(NativeMethods.VK_SHIFT, 0) & 0xFF);
+
+        if (shift) NativeMethods.keybd_event((byte)NativeMethods.VK_SHIFT, shiftScan, 0, UIntPtr.Zero);
+        NativeMethods.keybd_event(vk, scan, 0, UIntPtr.Zero);
+        NativeMethods.keybd_event(vk, scan, NativeMethods.KEYEVENTF_KEYUP, UIntPtr.Zero);
+        if (shift) NativeMethods.keybd_event((byte)NativeMethods.VK_SHIFT, shiftScan, NativeMethods.KEYEVENTF_KEYUP, UIntPtr.Zero);
     }
 
     // ── Console path (WriteConsoleInput) ─────────────────────────────────────
@@ -120,8 +335,6 @@ public static class TextSender
         if (!NativeMethods.AttachConsole(pid)) return false;
         try
         {
-            // GetStdHandle returns the inherited handle, which is INVALID for a GUI app
-            // even after AttachConsole. Open CONIN$ directly to get the active console input.
             var hConIn = NativeMethods.CreateFile(
                 "CONIN$",
                 NativeMethods.GENERIC_READ_WRITE,
@@ -162,31 +375,55 @@ public static class TextSender
             }
         };
 
-    // ── GUI fallback path (WM_KEYDOWN + WM_CHAR + WM_KEYUP) ─────────────────
-    // Sending all three messages covers both Win32 apps (which use WM_CHAR from
-    // TranslateMessage) and SDL-based apps such as VICE (which process WM_KEYDOWN).
+    // ── Shared helpers ───────────────────────────────────────────────────────
 
-    private static void PostKeyEvents(IntPtr hwnd, IEnumerable<char> chars)
+    private static void SendMsg(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam)
     {
-        const long lpKeyDown = 1L;              // repeat=1, all other bits 0
-        const long lpKeyUp   = 0xC0000001L;    // repeat=1, prev-state=1, transition=1
-        foreach (var c in chars)
-        {
-            ushort vk = CharToVk(c);
-            if (vk != 0)
-                NativeMethods.PostMessage(hwnd, NativeMethods.WM_KEYDOWN, (IntPtr)vk,  (IntPtr)lpKeyDown);
-            NativeMethods.PostMessage(hwnd, NativeMethods.WM_CHAR, (IntPtr)c, IntPtr.Zero);
-            if (vk != 0)
-                NativeMethods.PostMessage(hwnd, NativeMethods.WM_KEYUP,   (IntPtr)vk,  (IntPtr)lpKeyUp);
-        }
+        NativeMethods.SendMessageTimeout(hwnd, msg, wParam, lParam,
+            NativeMethods.SMTO_ABORTIFHUNG, 200, out _);
     }
 
-    /// <summary>Maps a character to its Windows virtual-key code, or 0 if unknown.</summary>
-    private static ushort CharToVk(char c) =>
+    internal static IntPtr BuildKeyLParam(ushort vk, bool keyUp)
+    {
+        var scanCode = NativeMethods.MapVirtualKey(vk, 0) & 0xFF;
+        long value = 1 | (scanCode << 16);
+        if (keyUp) value |= 1L << 30 | 1L << 31;
+        return (IntPtr)value;
+    }
+
+    internal static IntPtr BuildCharLParam(ushort vk)
+    {
+        if (vk == 0) return (IntPtr)1;
+        var scanCode = NativeMethods.MapVirtualKey(vk, 0) & 0xFF;
+        long value = 1 | (scanCode << 16);
+        return (IntPtr)value;
+    }
+
+    /// <summary>Maps a character to its Windows virtual-key code (simple mapping).</summary>
+    internal static ushort CharToVk(char c) =>
         c is >= 'a' and <= 'z' ? (ushort)(c - 32) :
         c is >= 'A' and <= 'Z' ? (ushort)c :
         c is >= '0' and <= '9' ? (ushort)c :
         c == ' '  ? NativeMethods.VK_SPACE :
         c == '\r' ? NativeMethods.VK_RETURN :
         (ushort)0;
+
+    /// <summary>
+    /// Maps a character to its VK code and shift state.
+    /// Uses deterministic rules for common characters and falls back to VkKeyScanW
+    /// for everything else (punctuation, locale-specific characters).
+    /// </summary>
+    internal static (byte vk, bool shift) CharToVkFull(char c)
+    {
+        if (c == '\r') return ((byte)NativeMethods.VK_RETURN, false);
+        if (c == ' ')  return ((byte)NativeMethods.VK_SPACE, false);
+        if (c is >= 'a' and <= 'z') return ((byte)(c - 32), false);
+        if (c is >= 'A' and <= 'Z') return ((byte)c, true);
+        if (c is >= '0' and <= '9') return ((byte)c, false);
+
+        // Fall back to the system keyboard layout for other characters
+        short result = NativeMethods.VkKeyScanW(c);
+        if (result == -1) return (0, false);
+        return ((byte)(result & 0xFF), (result & 0x100) != 0);
+    }
 }

@@ -61,6 +61,7 @@ obj/Debug/net8.0-windows/
  .NETCoreApp,Version=v8.0.AssemblyAttributes.cs
  PunyPlayer.Tests.AssemblyInfo.cs
  PunyPlayer.Tests.GlobalUsings.g.cs
+SendMethodTests.cs
 SettingsTests.cs
 TextSenderTests.cs
 TranscriptReaderTests.cs

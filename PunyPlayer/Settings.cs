@@ -11,7 +11,7 @@ public class AppSettings
     public int Delay { get; set; } = 1500;
     public int KeyDelay { get; set; } = 30;
     public int CurrentLine { get; set; } = 1;
-    public bool FocusMode { get; set; } = true;
+    public string SendMethod { get; set; } = "SendKeys";
     public double WindowLeft { get; set; } = 0;
     public double WindowTop { get; set; } = 0;
     public double WindowWidth { get; set; } = 0;
@@ -19,6 +19,7 @@ public class AppSettings
 
     // Keep for backwards compat when loading old files
     public string SelectedWindow { set { SelectedWindow1 = value; } }
+    public bool FocusMode { set { SendMethod = value ? "SendKeys" : "PostMessage"; } }
 
     public static string DefaultPath =>
         Path.Combine(AppContext.BaseDirectory, "PunyPlayer.jsonc");
@@ -62,8 +63,8 @@ public class AppSettings
               "keyDelay": {{KeyDelay}},
               // The next line number to play (1-based)
               "currentLine": {{CurrentLine}},
-              // Use SetForegroundWindow + SendKeys instead of PostMessage
-              "focusMode": {{JsonSerializer.Serialize(FocusMode)}},
+              // Keystroke delivery method (e.g. PostMessage, SendKeys, InputVK, etc.)
+              "sendMethod": {{JsonSerializer.Serialize(SendMethod)}},
               // Window position and size (0 = use default placement)
               "windowLeft": {{WindowLeft}},
               "windowTop": {{WindowTop}},

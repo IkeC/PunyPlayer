@@ -67,6 +67,7 @@ obj/Debug/net8.0-windows/
  PunyPlayer.AssemblyInfo.cs
  PunyPlayer.GlobalUsings.g.cs
  PunyPlayer_Content.g.cs
+SendMethod.cs
 Settings.cs
 TextSender.cs
 TranscriptReader.cs

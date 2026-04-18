@@ -438,5 +438,130 @@ public class TranscriptReaderTests
         var line = reader.Parse(1);
         Assert.Equal(LineType.Space, line.Type);
     }
+
+    // --- SWAP command ---
+
+    [Fact]
+    public void Parse_SwapCommand_Basic()
+    {
+        var reader = new TranscriptReader();
+        reader.LoadFromLines(["! SWAP(y,z)"]);
+        var line = reader.Parse(1);
+        Assert.Equal(LineType.Swap, line.Type);
+        Assert.Equal('y', line.SwapFrom);
+        Assert.Equal('z', line.SwapTo);
+    }
+
+    [Fact]
+    public void Parse_SwapCommand_CaseInsensitive()
+    {
+        var reader = new TranscriptReader();
+        reader.LoadFromLines(["! swap(a,b)"]);
+        var line = reader.Parse(1);
+        Assert.Equal(LineType.Swap, line.Type);
+        Assert.Equal('a', line.SwapFrom);
+        Assert.Equal('b', line.SwapTo);
+    }
+
+    [Fact]
+    public void Parse_SwapCommand_WithSpaceAfterBang()
+    {
+        var reader = new TranscriptReader();
+        reader.LoadFromLines(["!  SWAP(x,y)"]);
+        var line = reader.Parse(1);
+        Assert.Equal(LineType.Swap, line.Type);
+        Assert.Equal('x', line.SwapFrom);
+        Assert.Equal('y', line.SwapTo);
+    }
+
+    [Fact]
+    public void Parse_SwapCommand_SameChars_IsText()
+    {
+        // SWAP(a,a) is a no-op and falls through to Text
+        var reader = new TranscriptReader();
+        reader.LoadFromLines(["! SWAP(a,a)"]);
+        var line = reader.Parse(1);
+        Assert.Equal(LineType.Text, line.Type);
+    }
+
+    [Fact]
+    public void Parse_SwapCommand_TooManyChars_IsText()
+    {
+        var reader = new TranscriptReader();
+        reader.LoadFromLines(["! SWAP(ab,cd)"]);
+        var line = reader.Parse(1);
+        Assert.Equal(LineType.Text, line.Type);
+    }
+
+    [Fact]
+    public void Parse_SwapCommand_MissingSecondChar_IsText()
+    {
+        var reader = new TranscriptReader();
+        reader.LoadFromLines(["! SWAP(a,)"]);
+        var line = reader.Parse(1);
+        Assert.Equal(LineType.Text, line.Type);
+    }
+
+    [Fact]
+    public void Parse_SwapCommand_RawText_Preserved()
+    {
+        var reader = new TranscriptReader();
+        reader.LoadFromLines(["! SWAP(y,z)"]);
+        Assert.Equal("! SWAP(y,z)", reader.Parse(1).RawText);
+    }
+
+    // --- ApplySwaps ---
+
+    [Fact]
+    public void ApplySwaps_NoSwaps_ReturnsOriginal()
+    {
+        Assert.Equal("hello", TranscriptReader.ApplySwaps("hello", []));
+    }
+
+    [Fact]
+    public void ApplySwaps_SingleSwap_BothDirections()
+    {
+        // "yzyyz" with SWAP(y,z) → "zyzzy"
+        var swaps = new List<(char, char)> { ('y', 'z') };
+        Assert.Equal("zyzzy", TranscriptReader.ApplySwaps("yzyyz", swaps));
+    }
+
+    [Fact]
+    public void ApplySwaps_PreservesCase_FromUpper()
+    {
+        // Y → Z (uppercase preserved)
+        var swaps = new List<(char, char)> { ('y', 'z') };
+        Assert.Equal("Z", TranscriptReader.ApplySwaps("Y", swaps));
+    }
+
+    [Fact]
+    public void ApplySwaps_PreservesCase_ToUpper()
+    {
+        // Z → Y (uppercase preserved)
+        var swaps = new List<(char, char)> { ('y', 'z') };
+        Assert.Equal("Y", TranscriptReader.ApplySwaps("Z", swaps));
+    }
+
+    [Fact]
+    public void ApplySwaps_MixedCase()
+    {
+        var swaps = new List<(char, char)> { ('y', 'z') };
+        Assert.Equal("ZyZY", TranscriptReader.ApplySwaps("YzYZ", swaps));
+    }
+
+    [Fact]
+    public void ApplySwaps_NonSwappedChars_Unchanged()
+    {
+        var swaps = new List<(char, char)> { ('y', 'z') };
+        Assert.Equal("hello world", TranscriptReader.ApplySwaps("hello world", swaps));
+    }
+
+    [Fact]
+    public void ApplySwaps_MultipleSwaps_Independent()
+    {
+        // SWAP(a,b) and SWAP(x,y) both active
+        var swaps = new List<(char, char)> { ('a', 'b'), ('x', 'y') };
+        Assert.Equal("bayxba", TranscriptReader.ApplySwaps("abxyab", swaps));
+    }
 }
 

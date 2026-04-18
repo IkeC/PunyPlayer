@@ -3,8 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="PunyPlayer"
         Icon="app.ico"
-        Width="640" Height="320"
-        MinWidth="500" MinHeight="285"
+        Width="640" Height="288"
+        MinWidth="500" MinHeight="260"
         Background="{StaticResource BgBrush}"
         WindowStartupLocation="CenterScreen"
         ResizeMode="CanResizeWithGrip">
@@ -12,14 +12,12 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="12" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="12" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="8" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
@@ -38,9 +36,10 @@
         <Label Grid.Row="1" Grid.Column="0" Content="Window 2:" />
         <ComboBox x:Name="WindowCombo2" Grid.Row="1" Grid.Column="1" Margin="0,0,8,4" />
 
-        <!-- Window 3 -->
-        <Label Grid.Row="2" Grid.Column="0" Content="Window 3:" />
-        <ComboBox x:Name="WindowCombo3" Grid.Row="2" Grid.Column="1" Margin="0,0,8,4" />
+        <!-- Method -->
+        <Label Grid.Row="3" Grid.Column="0" Content="Method:" />
+        <ComboBox x:Name="SendMethodCombo" Grid.Row="3" Grid.Column="1"
+                  Height="22" FontSize="11" Margin="0,0,8,4" />
 
         <!-- File -->
         <Label Grid.Row="4" Grid.Column="0" Content="File:" />
@@ -48,10 +47,6 @@
                  LostFocus="OnFilePathChanged" />
         <Button x:Name="BrowseButton" Grid.Row="4" Grid.Column="2" Content="Browse..."
                 Width="75" Click="OnBrowse" />
-
-        <!-- Focus Mode -->
-        <ToggleButton x:Name="FocusModeToggle" Grid.Row="5" Grid.Column="2"
-                      Content="Focus Mode" Width="75" Height="22" FontSize="11" />
 
         <!-- Delay + Key delay -->
         <Label Grid.Row="5" Grid.Column="0" Content="Delay:" />
@@ -68,31 +63,30 @@
         </StackPanel>
 
         <!-- Line -->
-        <Label Grid.Row="7" Grid.Column="0" Content="Line:" />
-        <Grid Grid.Row="7" Grid.Column="1" Margin="0,0,8,4">
+        <Label Grid.Row="6" Grid.Column="0" Content="Line:" />
+        <Grid Grid.Row="6" Grid.Column="1" Margin="0,0,8,4">
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
-            <TextBox x:Name="LineBox" Grid.Column="0" Width="70"
+            <TextBox x:Name="LineBox" Grid.Column="0" Width="50"
                      PreviewTextInput="OnNumericInput"
                      DataObject.Pasting="OnNumericPaste"
                      TextChanged="OnLineTextChanged"
                      PreviewKeyDown="OnLineKeyDown"
                      MouseWheel="OnLineMouseWheel"
-                     TextAlignment="Right" />
-            <TextBox x:Name="LinePreview" Grid.Column="1" Margin="8,0,0,0" IsReadOnly="True" />
+                     TextAlignment="Left" />
+            <TextBox x:Name="LineCountBox" Grid.Column="1" Width="45" Margin="4,0,0,0"
+                     IsReadOnly="True" TextAlignment="Left" FontSize="11"
+                     ToolTip="Total number of lines in the loaded file" />
+            <TextBox x:Name="LinePreview" Grid.Column="2" Margin="4,0,0,0" IsReadOnly="True" />
         </Grid>
-        <Button x:Name="ResetButton" Grid.Row="7" Grid.Column="2" Content="Reset"
+        <Button x:Name="ResetButton" Grid.Row="6" Grid.Column="2" Content="Reset"
                 Width="75" Click="OnReset" />
 
-        <!-- Status -->
-        <TextBlock x:Name="StatusText" Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="3"
-                   Foreground="{StaticResource FgBrush}" Opacity="0.6"
-                   Margin="0,4,0,0" FontSize="11" />
-
         <!-- Run button -->
-        <Button x:Name="RunButton" Grid.Row="10" Grid.Column="0" Grid.ColumnSpan="3"
+        <Button x:Name="RunButton" Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="3"
                 Content="Run" Height="34"
                 Style="{StaticResource AccentButton}" Click="OnRunToggle"
                 HorizontalAlignment="Stretch" />

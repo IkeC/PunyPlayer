@@ -20,6 +20,9 @@ internal static class NativeMethods
     public static extern bool SetForegroundWindow(IntPtr hWnd);
 
     [DllImport("user32.dll")]
+    public static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
     public static extern bool BringWindowToTop(IntPtr hWnd);
 
     [DllImport("user32.dll")]
@@ -30,6 +33,28 @@ internal static class NativeMethods
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     public static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern IntPtr SendMessageTimeout(
+        IntPtr hWnd,
+        uint Msg,
+        IntPtr wParam,
+        IntPtr lParam,
+        uint fuFlags,
+        uint uTimeout,
+        out IntPtr lpdwResult);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
+
+    [DllImport("user32.dll")]
+    public static extern uint MapVirtualKey(uint uCode, uint uMapType);
+
+    [DllImport("user32.dll")]
+    public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    public static extern short VkKeyScanW(char ch);
 
     [DllImport("user32.dll")]
     private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
@@ -81,11 +106,17 @@ internal static class NativeMethods
     internal const uint WM_KEYDOWN = 0x0100;
     internal const uint WM_KEYUP   = 0x0101;
     internal const uint WM_CHAR    = 0x0102;
+    internal const uint SMTO_ABORTIFHUNG = 0x0002;
     internal const int    STD_INPUT_HANDLE      = -10;
     internal const uint   GENERIC_READ_WRITE    = 0xC0000000;
     internal const uint   FILE_SHARE_READ_WRITE = 0x00000003;
     internal const uint   OPEN_EXISTING         = 3;
     internal const ushort KEY_EVENT = 0x0001;
+    internal const uint   INPUT_KEYBOARD = 1;
+    internal const uint   KEYEVENTF_KEYUP = 0x0002;
+    internal const uint   KEYEVENTF_UNICODE = 0x0004;
+    internal const uint   KEYEVENTF_SCANCODE = 0x0008;
+    internal const ushort VK_SHIFT  = 0x0010;
     internal const ushort VK_RETURN = 0x000D;
     internal const ushort VK_SPACE  = 0x0020;
     private const long WS_EX_TOOLWINDOW = 0x80;
@@ -110,6 +141,29 @@ internal static class NativeMethods
     {
         [FieldOffset(0)] public ushort          EventType;
         [FieldOffset(4)] public KEY_EVENT_RECORD KeyEvent;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct INPUT
+    {
+        public uint type;
+        public INPUTUNION U;
+    }
+
+    [StructLayout(LayoutKind.Explicit)]
+    internal struct INPUTUNION
+    {
+        [FieldOffset(0)] public KEYBDINPUT ki;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct KEYBDINPUT
+    {
+        public ushort wVk;
+        public ushort wScan;
+        public uint dwFlags;
+        public uint time;
+        public nint dwExtraInfo;
     }
 
     internal const uint TH32CS_SNAPPROCESS = 0x00000002;

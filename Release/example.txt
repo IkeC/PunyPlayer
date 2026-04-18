@@ -9,6 +9,7 @@
 # ! Delay 2000 -> wait 2000 miliseconds
 # ! WIN="Agon": exec playgame.txt -> If window title contains "Agon", send the line "exec playgame.txt"
 # ! EXEC="C:\Emu\dfrotz.exe" -> Start dfrotz.exe
+# ! SWAP(y,z) -> Swap y characters for z and vice versa (case insensitive) for all following lines
 
 ! WIN="Fab Agon Emulator": cd games/Agon
 ! WIN="Fab Agon Emulator": exec playgame.txt
