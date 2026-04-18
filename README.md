@@ -58,8 +58,10 @@ take lamp
 |---|---|
 | `# ...` | Comment — skipped during playback |
 | `! Enter` or `! E` | Press the Enter key |
-| `! Space` | Press the Space key |
+| `! Space` or `! S` | Press the Space key |
 | `! Delay <ms>` | Pause for the given number of milliseconds |
+| `! WIN="Agon": exec playgame.txt` | If window title contains "Agon", send the line "exec playgame.txt" |
+| `! EXEC="C:\Emu\dfrotz.exe"` | Start dfrotz.exe |
 | _(any other text)_ | Sent as keystrokes to the target window |
 
 Empty and whitespace-only lines are skipped.  Bang commands (`!`) do not
