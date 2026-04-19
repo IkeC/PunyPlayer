@@ -1,5 +1,5 @@
 # This is a walkthrough for the PunyInform game "Dust".
-# https://ikeserver.de/Dust/
+# https://ikeserver.de/Dust/retro.html
 #
 # PunyPlayer will ignore blank lines and lines starting with #.
 #
@@ -11,6 +11,7 @@
 # ! EXEC="C:\Emu\dfrotz.exe" -> Start dfrotz.exe
 # ! SWAP(y,z) -> Swap y characters for z and vice versa (case insensitive) for all following lines
 
+! WIN="Fab Agon Emulator": set kezboard 2
 ! WIN="Fab Agon Emulator": cd games/Agon
 ! WIN="Fab Agon Emulator": exec playgame.txt
 
