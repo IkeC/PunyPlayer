@@ -5,4 +5,4 @@ obj/
 PunyPlayer.jsonc
 *.pdb
 Release/Dust.Agon.txt
-PunyPlayer/PunyPlayer.csproj.lscache
+*.csproj.lscache
